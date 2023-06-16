@@ -9,4 +9,3 @@
 app
 cgi-bin
 log
-.docker/certbot/*
