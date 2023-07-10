@@ -38,8 +38,8 @@ services:
     environment:
       SMTP_CONTAINER: mail
       SMTP_EMAIL: ${MAIL_SMTP_USER}
-    ports:
-      - "9000:9000"
+    expose:
+      - "9000"
     working_dir: /var/webserver/www
     volumes:
       - ./app:/var/webserver/www
