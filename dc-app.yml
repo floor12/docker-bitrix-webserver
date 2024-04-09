@@ -1,40 +1,30 @@
 version: '3'
 services:
-  db:
+  mysql:
     image: mysql:8.0.33
     container_name: wDatabase
     restart: always
     tty: true
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_USER_PASSWORD}
+      MYSQL_DATABASE: ${mysql_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${mysql_ROOT_PASSWORD}
+      MYSQL_USER: ${mysql_USER}
+      MYSQL_PASSWORD: ${mysql_USER_PASSWORD}
     volumes:
-      - ./.backups:/var/www/.backups
       - ./.docker/mysql/my.cnf:/etc/mysql/my.cnf
       - database:/var/lib/mysql
     networks:
       - backend
-
-  mail:
-    image: namshi/smtp
-    container_name: wMail
-    restart: always
-    tty: true
-    environment:
-      SMARTHOST_ADDRESS: ${MAIL_SMTP_HOST}
-      SMARTHOST_PORT: ${MAIL_SMTP_PORT}
-      SMARTHOST_USER: ${MAIL_SMTP_USER}
-      SMARTHOST_PASSWORD: ${MAIL_SMTP_PASSWORD}
-    networks:
-      - backend
+    ports:
+      - "3311:3306"
 
   php:
     container_name: wApplication
     restart: always
     tty: true
-    image: andriykryvenko/bitrix-app:8.1
+    build:
+      context: ./.docker
+      dockerfile: php.Dockerfile
     environment:
       SMTP_CONTAINER: mail
       SMTP_EMAIL: ${MAIL_SMTP_USER}
@@ -42,12 +32,12 @@ services:
       - "9000"
     working_dir: /var/webserver/www
     volumes:
-      - ./app:/var/webserver/www
+      - ../bitrix/bitrix:/var/webserver/www/public/
       - ./log:/var/webserver/log
     networks:
       - backend
     depends_on:
-      - db
+      - mysql
       - mail
 
   nginx:
@@ -61,7 +51,7 @@ services:
         GID: ${GID:-1000}
         USER: ${USER:-webserver}
     volumes:
-      - ./app/public:/var/webserver/www/public
+      - ./bitrix:/var/webserver/www/public
       - ./log:/var/webserver/log
     environment:
       - APP_NAME=${APP_NAME}
@@ -72,9 +62,13 @@ services:
           - ${APP_NAME}
     depends_on:
       - php
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bitrixdoc.entrypoints=web"
+      - "traefik.http.routers.bitrixdoc.rule=Host(`restore.transfix.su`)"
 
   composer:
-    profiles: ["composer"]
+    profiles: [ "composer" ]
     container_name: wComposer
     restart: "no"
     build:
